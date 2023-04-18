@@ -25,6 +25,7 @@ message ListRacesResponse {
 message ListRacesRequestFilter {
   repeated int64 meeting_ids = 1;
   bool only_visible = 2;
+  optional string AST_order_by = 3;
 }
 
 /* Resources */

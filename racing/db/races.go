@@ -2,12 +2,14 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
 	_ "github.com/mattn/go-sqlite3"
+	log "github.com/sirupsen/logrus"
 
 	"git.neds.sh/matty/entain/racing/proto/racing"
 )
@@ -89,6 +91,17 @@ func (r *racesRepo) applyFilter(query string, filter *racing.ListRacesRequestFil
 		query += " WHERE " + strings.Join(clauses, " AND ")
 	}
 
+	// ORDER BY applied after query is joined with clauses
+	if filter.ASTOrderBy != nil {
+		AstOrder := filter.GetASTOrderBy()
+
+		// Validate the parsed value
+		if AstOrder != ("DESC") && AstOrder != ("ASC") {
+			log.Info("[RACING]: invalid order by value")
+		} else {
+			query += fmt.Sprintf(" ORDER BY advertised_start_time %v", AstOrder)
+		}
+	}
 	return query, args
 }
 
