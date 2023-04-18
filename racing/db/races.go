@@ -56,6 +56,7 @@ func (r *racesRepo) Init() error {
 // Linked function for RacingService.GetRace
 func (r *racesRepo) Get(raceId int64) (*racing.Race, error) {
 	query := fmt.Sprintf(getRaceQueries()[racesGet], raceId)
+
 	row := r.db.QueryRow(query)
 
 	return r.scanRace(row)
@@ -119,6 +120,7 @@ func (r *racesRepo) applyFilter(query string, filter *racing.ListRacesRequestFil
 			query += fmt.Sprintf(" ORDER BY advertised_start_time %v", AstOrder)
 		}
 	}
+
 	return query, args
 }
 
