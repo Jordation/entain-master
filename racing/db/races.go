@@ -57,9 +57,19 @@ func (r *racesRepo) Init() error {
 func (r *racesRepo) Get(raceId int64) (*racing.Race, error) {
 	query := fmt.Sprintf(getRaceQueries()[racesGet], raceId)
 
-	row := r.db.QueryRow(query)
+	row, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
 
-	return r.scanRace(row)
+	res, err := r.scanRaces(row)
+	if err != nil {
+		return nil, err
+	}
+	if len(res) != 1 {
+		return nil, fmt.Errorf("get race did not return 1 race")
+	}
+	return res[0], nil
 }
 
 // Linked function for RacingService.ListRaces
@@ -122,28 +132,6 @@ func (r *racesRepo) applyFilter(query string, filter *racing.ListRacesRequestFil
 	}
 
 	return query, args
-}
-
-func (m *racesRepo) scanRace(
-	row *sql.Row,
-) (*racing.Race, error) {
-	var (
-		race            racing.Race
-		advertisedStart time.Time
-	)
-
-	if err := row.Scan(&race.Id, &race.MeetingId, &race.Name, &race.Number, &race.Visible, &advertisedStart); err != nil {
-		return nil, err
-	}
-
-	ts, err := ptypes.TimestampProto(advertisedStart)
-	if err != nil {
-		return nil, err
-	}
-
-	race.AdvertisedStartTime = ts
-
-	return &race, nil
 }
 
 func (m *racesRepo) scanRaces(
