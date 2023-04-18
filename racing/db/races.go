@@ -66,9 +66,11 @@ func (r *racesRepo) Get(raceId int64) (*racing.Race, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if len(res) != 1 {
 		return nil, fmt.Errorf("get race did not return 1 race")
 	}
+
 	return res[0], nil
 }
 
@@ -137,8 +139,10 @@ func (r *racesRepo) applyFilter(query string, filter *racing.ListRacesRequestFil
 func (m *racesRepo) scanRaces(
 	rows *sql.Rows,
 ) ([]*racing.Race, error) {
-	var races []*racing.Race
-	currentTime := time.Now()
+	var (
+		races       []*racing.Race
+		currentTime = time.Now()
+	)
 
 	for rows.Next() {
 		var (
