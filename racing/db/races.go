@@ -26,6 +26,9 @@ type RacesRepo interface {
 
 	// List will return a list of races.
 	List(filter *racing.ListRacesRequestFilter) ([]*racing.Race, error)
+
+	// Get will return a single race matching the ID of the request
+	Get(raceId int64) (*racing.Race, error)
 }
 
 type racesRepo struct {
@@ -50,6 +53,15 @@ func (r *racesRepo) Init() error {
 	return err
 }
 
+// Linked function for RacingService.GetRace
+func (r *racesRepo) Get(raceId int64) (*racing.Race, error) {
+	query := fmt.Sprintf(getRaceQueries()[racesGet], raceId)
+	row := r.db.QueryRow(query)
+
+	return r.scanRace(row)
+}
+
+// Linked function for RacingService.ListRaces
 func (r *racesRepo) List(filter *racing.ListRacesRequestFilter) ([]*racing.Race, error) {
 	var (
 		err   error
@@ -110,6 +122,28 @@ func (r *racesRepo) applyFilter(query string, filter *racing.ListRacesRequestFil
 	return query, args
 }
 
+func (m *racesRepo) scanRace(
+	row *sql.Row,
+) (*racing.Race, error) {
+	var (
+		race            racing.Race
+		advertisedStart time.Time
+	)
+
+	if err := row.Scan(&race.Id, &race.MeetingId, &race.Name, &race.Number, &race.Visible, &advertisedStart); err != nil {
+		return nil, err
+	}
+
+	ts, err := ptypes.TimestampProto(advertisedStart)
+	if err != nil {
+		return nil, err
+	}
+
+	race.AdvertisedStartTime = ts
+
+	return &race, nil
+}
+
 func (m *racesRepo) scanRaces(
 	rows *sql.Rows,
 ) ([]*racing.Race, error) {
@@ -117,8 +151,10 @@ func (m *racesRepo) scanRaces(
 	currentTime := time.Now()
 
 	for rows.Next() {
-		var race racing.Race
-		var advertisedStart time.Time
+		var (
+			advertisedStart time.Time
+			race            racing.Race
+		)
 
 		if err := rows.Scan(&race.Id, &race.MeetingId, &race.Name, &race.Number, &race.Visible, &advertisedStart); err != nil {
 			if err == sql.ErrNoRows {
