@@ -14,6 +14,11 @@ import (
 	"git.neds.sh/matty/entain/racing/proto/racing"
 )
 
+const (
+	RACE_STATUS_OPEN   = "OPEN"
+	RACE_STATUS_CLOSED = "CLOSED"
+)
+
 // RacesRepo provides repository access to races.
 type RacesRepo interface {
 	// Init will initialise our races repository.
@@ -109,6 +114,7 @@ func (m *racesRepo) scanRaces(
 	rows *sql.Rows,
 ) ([]*racing.Race, error) {
 	var races []*racing.Race
+	currentTime := time.Now()
 
 	for rows.Next() {
 		var race racing.Race
@@ -125,6 +131,13 @@ func (m *racesRepo) scanRaces(
 		ts, err := ptypes.TimestampProto(advertisedStart)
 		if err != nil {
 			return nil, err
+		}
+
+		// derives race.Status from current time compared against scanned advertisedStart time
+		if currentTime.Before(advertisedStart) {
+			race.Status = RACE_STATUS_OPEN
+		} else {
+			race.Status = RACE_STATUS_CLOSED
 		}
 
 		race.AdvertisedStartTime = ts
