@@ -7,11 +7,11 @@ import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
 
 service Racing {
-  // ListRaces returns a list of all races.
+  // ListRaces returns a list of races matching the filter provided in the request.
   rpc ListRaces(ListRacesRequest) returns (ListRacesResponse) {
     option (google.api.http) = { post: "/v1/list-races", body: "*" };
   }
-  //GetRace returns a single race
+  //GetRace returns a single race.
   rpc GetRace(GetRaceRequest) returns (GetRaceResponse) {
     option (google.api.http) = { get: "/v1/get-race/{race_id}"};
   }
@@ -66,3 +66,7 @@ message Race {
   // The value will be "CLOSED" for AdvertisedStartTime's in the past and otherwise; "OPEN"
   string status = 7;
 }
+
+
+
+

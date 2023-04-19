@@ -1,0 +1,70 @@
+syntax = "proto3";
+package sports_pb;
+
+option go_package = "/sports_pb";
+
+import "google/protobuf/timestamp.proto";
+
+service Sports {
+  // ListSports returns a list of sports matching the provided filter
+  rpc ListSports(ListSportsRequest) returns (ListSportsResponse) {};
+  // GetSport returns a single sport matching the provided ID
+  rpc GetSport(GetSportRequest) returns (GetSportResponse) {};
+}
+
+/* Requests/Responses */
+
+// Request for ListSports call
+message ListSportsRequest {
+  ListSportsRequestFilter filter = 1;
+}
+
+// Response to ListSports call.
+message ListSportsResponse {
+  repeated Sport sports = 1;
+}
+
+// Filter for listing sports.
+message ListSportsRequestFilter {
+  repeated int64 event_ids = 1;
+  bool only_visible = 2;
+  optional SportsOrderByFilter order_by = 3;  
+}
+// Filter for grouping results
+message SportsOrderByFilter {
+  string order_by_field = 1;
+  string order_by_direction = 2;
+}
+
+// Request for GetSport call.
+message GetSportRequest {
+  int64 sport_id = 1;
+}
+
+// Reponse for GetSport call.
+message GetSportResponse {
+  Sport sport = 1;
+}
+
+/* Resources */
+
+// A sport resource.
+message Sport {
+  // ID represents a unique identifier for the sport.
+  int64 id = 1;
+  // EventID represents the parent event of the sports match
+  int64 event_id = 2;
+  // Category represents the category of the sport.
+  string category = 3;
+  // Team1 and Team2 represent the competing teams
+  string team_1 = 4;
+  string team_2 = 5;
+  // Visible represents whether or not the sport is visible.
+  bool visible = 6;
+  // AdvertisedStartTime is the time the sport is advertised to run.
+  google.protobuf.Timestamp advertised_start_time = 7;
+  // Status is derived from AdvertisedStartTime and is set at request time 
+  // The value will be "CLOSED" for AdvertisedStartTime's in the past and otherwise; "OPEN"
+  string status = 8;
+}
+
