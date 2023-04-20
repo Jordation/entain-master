@@ -40,59 +40,86 @@ func NewSportsRepo(db *sql.DB) SportsRepo {
 }
 
 // Init prepares the sport repository dummy data.
-func (r *sportsRepo) Init() error {
+func (s *sportsRepo) Init() error {
 	var err error
 
-	r.init.Do(func() {
+	s.init.Do(func() {
 		// For test/example purposes, we seed the DB with some dummy sports_pb.
-		err = r.seed()
+		err = s.seed()
 	})
 
 	return err
 }
 
+// Didn't want to change module go version but should be generic
+// Functions to check if an element is within a slice
+func contains(e string, s []string) bool {
+	for _, v := range s {
+		if v == e {
+			return true
+		}
+	}
+	return false
+}
+
 // Linked function for SportsService.GetSport
-func (r *sportsRepo) Get(sportId int64) (*sports_pb.Sport, error) {
+func (s *sportsRepo) Get(sportId int64) (*sports_pb.Sport, error) {
 	query := fmt.Sprintf(getSportQueries()[sportsGet], sportId)
 
-	row, err := r.db.Query(query)
+	row, err := s.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := r.scanSports(row)
+	res, err := s.scanSports(row)
 	if err != nil {
 		return nil, err
-	}
-
-	if len(res) != 1 {
-		return nil, fmt.Errorf("get sport did not return 1 sport")
 	}
 
 	return res[0], nil
 }
 
 // Linked function for SportsService.ListSports
-func (r *sportsRepo) List(filter *sports_pb.ListSportsRequestFilter) ([]*sports_pb.Sport, error) {
+func (s *sportsRepo) List(filter *sports_pb.ListSportsRequestFilter) ([]*sports_pb.Sport, error) {
 	var (
 		err   error
 		query string
 		args  []interface{}
 	)
 
+	if filter.OrderBy != nil {
+		cols, err := s.getSportDbColumns()
+		if err != nil {
+			return nil, err
+		}
+		if !s.validateOrderByFilter(filter.OrderBy, cols) {
+			return nil, fmt.Errorf("[LIST SPORTS]: invalid order by filter")
+		}
+	}
+
 	query = getSportQueries()[sportsList]
 
-	query, args = r.applyFilter(query, filter)
+	query, args = s.applyFilter(query, filter)
 
-	rows, err := r.db.Query(query, args...)
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 
-	return r.scanSports(rows)
+	return s.scanSports(rows)
 }
 
-func applyOrderByFilter(filter *sports_pb.SportsOrderByFilter) string {
+// Validates that the field provided matches a column in the database
+func (s *sportsRepo) validateOrderByFilter(f *sports_pb.SportsOrderByFilter, cols []string) bool {
+	if contains(f.OrderByField, cols) &&
+		((f.OrderByDirection == "ASC") || (f.OrderByDirection == "DESC")) {
+		return true
+	}
+	return false
+}
+
+// Returns ORDER BY clause for concatenation
+func getOrderByClause(filter *sports_pb.SportsOrderByFilter) string {
 	return fmt.Sprintf(
 		getSportQueries()[sportsOrderby],
 		filter.OrderByField,
@@ -100,7 +127,7 @@ func applyOrderByFilter(filter *sports_pb.SportsOrderByFilter) string {
 	)
 }
 
-func (r *sportsRepo) applyFilter(query string, filter *sports_pb.ListSportsRequestFilter) (string, []interface{}) {
+func (s *sportsRepo) applyFilter(query string, filter *sports_pb.ListSportsRequestFilter) (string, []interface{}) {
 	var (
 		clauses []string
 		args    []interface{}
@@ -128,7 +155,7 @@ func (r *sportsRepo) applyFilter(query string, filter *sports_pb.ListSportsReque
 	}
 
 	if filter.OrderBy != nil {
-		query += applyOrderByFilter(filter.OrderBy)
+		query += getOrderByClause(filter.OrderBy)
 	}
 
 	return query, args
@@ -174,4 +201,25 @@ func (m *sportsRepo) scanSports(
 	}
 
 	return sports, nil
+}
+
+// Gets a list of current columns from Sports DB table
+func (s *sportsRepo) getSportDbColumns() ([]string, error) {
+	var columnsNames []string
+
+	rows, err := s.db.Query(getSportQueries()[sportsListDbColumns])
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var colName string
+		if err := rows.Scan(&colName); err != nil {
+			return nil, err
+		}
+
+		columnsNames = append(columnsNames, colName)
+	}
+
+	return columnsNames, nil
 }
